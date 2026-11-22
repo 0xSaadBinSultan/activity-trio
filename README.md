@@ -1,5 +1,7 @@
 # Activity Trio
 
+[![Build checks](https://github.com/0xSaadBinSultan/activity-trio/actions/workflows/android.yml/badge.svg)](https://github.com/0xSaadBinSultan/activity-trio/actions/workflows/android.yml)
+
 **GitHub, Codeforces and LeetCode activity on your Android home screen.**
 
 A lightweight native Java app with a combined three-graph widget and three individual
@@ -31,6 +33,34 @@ the previous app and preserves the remaining three profiles and their cached dat
 The discontinued fourth service, its profile field, imports, graph and widget provider
 have been removed. No uninstallation is required. If a launcher keeps an older combined
 layout, remove and re-add only that home-screen widget.
+
+## Supported platforms
+
+| Use | Supported environment |
+| --- | --- |
+| Install the app | Android 8.0+ phones and tablets with an app-widget launcher |
+| Build the Android APK | Windows, macOS or Linux with JDK 21 and Android SDK 35 |
+| iPhone/iPad, native Windows/macOS/Linux widgets | Not included; Android widgets need Android APIs |
+
+On Windows PowerShell, after installing the required SDK packages:
+
+```powershell
+.\gradlew.bat --no-daemon testDebugUnitTest lintDebug assembleDebug
+```
+
+On macOS/Linux:
+
+```sh
+./gradlew --no-daemon testDebugUnitTest lintDebug assembleDebug
+```
+
+The debug APK is `app/build/outputs/apk/debug/app-debug.apk`. Debug builds use
+a development signing key and cannot update the official release-signed app.
+Use the official Releases APK for normal installation. GitHub Actions runs the
+same build/test commands on all three desktop hosts and uploads development APKs
+and reports. Release signing secrets are never needed by CI and are not uploaded.
+An Android emulator can test the app on a desktop, but its widgets are not native
+desktop widgets. Platform support should be assessed from actual CI results.
 
 ## Widget behavior
 

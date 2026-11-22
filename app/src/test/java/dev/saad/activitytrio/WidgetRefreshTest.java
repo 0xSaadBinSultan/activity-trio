@@ -33,7 +33,7 @@ public class WidgetRefreshTest {
         View view=roundtrip(Widgets.forOptions(context,5,TrioWidget.class,options)).apply(context,new FrameLayout(context));Bitmap before=image(view,R.id.github_graph).copy(Bitmap.Config.ARGB_8888,false),other=image(view,R.id.leetcode_graph).copy(Bitmap.Config.ARGB_8888,false);
         ActivityData previous=Store.read(context,"github");TreeMap<LocalDate,ActivityData.Day> days=new TreeMap<>(previous.cells);days.put(LocalDate.of(2026,1,1),new ActivityData.Day(40,4));Store.save(context,new ActivityData("github",previous.username,previous.year,previous.total+37,previous.updated,previous.zone,false,days));
         roundtrip(Widgets.forOptions(context,5,TrioWidget.class,options)).reapply(context,view);
-        assertFalse(before.sameAs(image(view,R.id.github_graph)));assertTrue(other.sameAs(image(view,R.id.leetcode_graph)));assertNotNull(image(view,R.id.codeforces_graph));
+        assertFalse("Updated GitHub data must change the rendered pixels",before.sameAs(image(view,R.id.github_graph)));assertTrue("Unchanged LeetCode pixels must remain identical",other.sameAs(image(view,R.id.leetcode_graph)));assertNotNull(image(view,R.id.codeforces_graph));
     }
     @Test public void sixteenLauncherSizesStayWithinActualBitmapPayloadBudget()throws Exception{
         Bundle options=new Bundle();ArrayList<SizeF> sizes=new ArrayList<>();for(int i=0;i<16;i++)sizes.add(new SizeF(320+i*120,300+i*70));options.putParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES,sizes);

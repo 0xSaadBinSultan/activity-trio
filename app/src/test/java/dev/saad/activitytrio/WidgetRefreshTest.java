@@ -27,13 +27,25 @@ public class WidgetRefreshTest {
     Application context;
     @Before public void setup(){context=RuntimeEnvironment.getApplication();Store.prefs(context).edit().clear().apply();for(String id:ActivityData.PROVIDERS)new java.io.File(context.getFilesDir(),id+".json").delete();TestFixtures.cache(context);RejectingManager.brokenId=-1;}
     Bitmap image(View view,int id){android.graphics.drawable.Drawable drawable=((ImageView)view.findViewById(id)).getDrawable();return drawable instanceof BitmapDrawable?((BitmapDrawable)drawable).getBitmap():null;}
+    int[] pixels(Bitmap bitmap){
+        int[] result=new int[bitmap.getWidth()*bitmap.getHeight()];
+        bitmap.getPixels(result,0,bitmap.getWidth(),0,0,bitmap.getWidth(),bitmap.getHeight());
+        return result;
+    }
     RemoteViews roundtrip(RemoteViews views){Parcel parcel=Parcel.obtain();try{views.writeToParcel(parcel,0);parcel.setDataPosition(0);return RemoteViews.CREATOR.createFromParcel(parcel);}finally{parcel.recycle();}}
     @Test public void combinedGraphPixelsUpdateAfterParcelAndReapply()throws Exception{
         Bundle options=new Bundle();options.putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,360);options.putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,300);
-        View view=roundtrip(Widgets.forOptions(context,5,TrioWidget.class,options)).apply(context,new FrameLayout(context));Bitmap before=image(view,R.id.github_graph).copy(Bitmap.Config.ARGB_8888,false),other=image(view,R.id.leetcode_graph).copy(Bitmap.Config.ARGB_8888,false);
+        View view=roundtrip(Widgets.forOptions(context,5,TrioWidget.class,options)).apply(context,new FrameLayout(context));
+        // Snapshot pixel values before reapply; do not rely on native bitmap
+        // copy/sameAs behavior or on a buffer that the host may later reuse.
+        int[] before=pixels(image(view,R.id.github_graph));
+        int[] other=pixels(image(view,R.id.leetcode_graph));
         ActivityData previous=Store.read(context,"github");TreeMap<LocalDate,ActivityData.Day> days=new TreeMap<>(previous.cells);days.put(LocalDate.of(2026,1,1),new ActivityData.Day(40,4));Store.save(context,new ActivityData("github",previous.username,previous.year,previous.total+37,previous.updated,previous.zone,false,days));
         roundtrip(Widgets.forOptions(context,5,TrioWidget.class,options)).reapply(context,view);
-        assertFalse("Updated GitHub data must change the rendered pixels",before.sameAs(image(view,R.id.github_graph)));assertTrue("Unchanged LeetCode pixels must remain identical",other.sameAs(image(view,R.id.leetcode_graph)));assertNotNull(image(view,R.id.codeforces_graph));
+        assertEquals(Integer.valueOf(40),Store.read(context,"github").day(LocalDate.of(2026,1,1)).count);
+        assertFalse("Updated GitHub data must change the rendered pixel values",Arrays.equals(before,pixels(image(view,R.id.github_graph))));
+        assertArrayEquals("Unchanged LeetCode pixel values must remain identical",other,pixels(image(view,R.id.leetcode_graph)));
+        assertNotNull(image(view,R.id.codeforces_graph));
     }
     @Test public void sixteenLauncherSizesStayWithinActualBitmapPayloadBudget()throws Exception{
         Bundle options=new Bundle();ArrayList<SizeF> sizes=new ArrayList<>();for(int i=0;i<16;i++)sizes.add(new SizeF(320+i*120,300+i*70));options.putParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES,sizes);

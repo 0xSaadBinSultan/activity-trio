@@ -49,6 +49,22 @@ public class ActivityTrioTest {
     }
     private static void findEdits(View view,List<EditText> result){if(view instanceof EditText)result.add((EditText)view);if(view instanceof ViewGroup)for(int i=0;i<((ViewGroup)view).getChildCount();i++)findEdits(((ViewGroup)view).getChildAt(i),result);}
     @Test public void jsonRoundtripPreservesLiveCounts()throws Exception{TestFixtures.cache(context);ActivityData a=Store.read(context,"leetcode"),b=ActivityData.fromJson(a.json());assertEquals(a.json().toString(),b.json().toString());assertEquals(Integer.valueOf(7),b.day(LocalDate.of(2026,1,1)).count);}
+    @Test public void repeatedCacheSavesReplaceDataAndPreserveOtherProviders()throws Exception{
+        TestFixtures.cache(context);
+        ActivityData original=Store.read(context,"github");
+        String other=Store.read(context,"codeforces").json().toString();
+        LocalDate day=LocalDate.of(2026,1,1);
+        for(int count:new int[]{0,7,40}){
+            TreeMap<LocalDate,ActivityData.Day> days=new TreeMap<>(original.cells);
+            days.put(day,new ActivityData.Day(count,count==0?0:4));
+            Store.save(context,new ActivityData("github",original.username,original.year,count,
+                original.updated,original.zone,false,days));
+            assertEquals(Integer.valueOf(count),Store.read(context,"github").day(day).count);
+            assertEquals(other,Store.read(context,"codeforces").json().toString());
+        }
+        for(java.io.File entry:context.getFilesDir().listFiles())
+            assertFalse("Successful writes must clean up temporary files",entry.getName().endsWith(".pending"));
+    }
     @Test public void switchingProfileDoesNotDisplayPreviousUsersGraph(){TestFixtures.cache(context);assertNotNull(Store.read(context,"github"));Store.prefs(context).edit().putString("github","another-person").apply();assertNull(Store.read(context,"github"));}
     @Test public void upgradeKeepsRemainingProfilesAndRemovesRetiredProvider()throws Exception{
         TestFixtures.cache(context);Store.prefs(context).edit().putString("tryhackme","legacy-profile").apply();

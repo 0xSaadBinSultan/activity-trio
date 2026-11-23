@@ -5,6 +5,9 @@ import android.util.AtomicFile;
 import org.json.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.*;
 
 public final class Store {
@@ -17,8 +20,25 @@ public final class Store {
     public static int year(Context context){int chosen=prefs(context).getInt("year",0);return chosen>0?chosen:Year.now(ZoneId.of(zone(context))).getValue();}
     private static File file(Context context,String provider){for(String id:ActivityData.PROVIDERS)if(id.equals(provider))return new File(context.getFilesDir(),provider+".json");throw new IllegalArgumentException("Unknown provider");}
     public static synchronized void save(Context context,ActivityData data)throws Exception{
-        AtomicFile file=new AtomicFile(file(context,data.provider));FileOutputStream out=null;
-        try{out=file.startWrite();out.write(data.json().toString().getBytes(StandardCharsets.UTF_8));file.finishWrite(out);}catch(Exception error){if(out!=null)file.failWrite(out);throw error;}
+        File base=file(context,data.provider);
+        // Recover an interrupted cache written by earlier app versions first.
+        // AtomicFile's finishWrite uses File.renameTo, which cannot replace an
+        // existing destination on Windows JVM hosts. NIO requests replacement
+        // explicitly and also reports write failures instead of only logging.
+        try(FileInputStream recovered=new AtomicFile(base).openRead()){}
+        catch(FileNotFoundException missing){}
+        Path target=base.toPath();
+        Path pending=Files.createTempFile(target.getParent(),data.provider+"-",".pending");
+        try{
+            try(FileOutputStream out=new FileOutputStream(pending.toFile())){
+                out.write(data.json().toString().getBytes(StandardCharsets.UTF_8));
+                out.getFD().sync();
+            }
+            // Same-directory atomic rename is supported by Android's private
+            // storage and the desktop CI filesystems. Fail closed otherwise:
+            // the previous cache remains intact when atomic moves are unavailable.
+            Files.move(pending,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+        }finally{Files.deleteIfExists(pending);}
     }
     public static ActivityData read(Context context,String provider){
         if(user(context,provider).isEmpty())return null;
